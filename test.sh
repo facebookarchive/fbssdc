@@ -5,6 +5,11 @@
 set -e
 
 # Integration test for round-tripping a file.
+#
+# Note:
+# - On MacOS X, you need to install GNU coreutils (package `coreutils`).
+# - On Ubuntu, you need to install realpath (package `realpath`).
+# - On all platforms, you need to install brotli (`pip install brotli`).
 
 prog_dir=$(dirname $(realpath $0))
 
