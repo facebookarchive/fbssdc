@@ -7,6 +7,7 @@
 
 import doctest
 import io
+import struct
 
 import bits
 import encode
@@ -14,6 +15,14 @@ import lazy
 import model
 import strings
 import tycheck
+
+# The magic header for all (recent) binjs formats.
+MAGIC_HEADER = b"\x89BJS\r\n\0\n"
+
+# The version of the format. binjs-fbssdc implements context-0.1, which is
+# the second released version of the format.
+FORMAT_VERSION = struct.pack('b', 2)
+assert struct.calcsize('b') == 1
 
 def write(types, string_dict, ty, tree, out):
   '''Compresses ast and writes it to a byte stream.
@@ -34,6 +43,10 @@ def write(types, string_dict, ty, tree, out):
 
   # Check the AST conforms to the IDL.
   tycheck.TypeChecker(types).check_any(ty, tree)
+
+  # At this point, we are done with verifications. We may start writing the output.
+  out.write(MAGIC_HEADER)
+  out.write(FORMAT_VERSION)
 
   # Collect the local strings and write the string table
   local_strings = strings.StringCollector(types)
@@ -125,6 +138,14 @@ def read(types, string_dict, ty, inp):
   >>> tree_out = read(types, string_dict, ty_script, buf)
   >>> assert json.dumps(tree_in) == json.dumps(tree_out)
   '''
+
+  # Check that we're attempting to decompress a file with the right type.
+  maybe_magic_header = inp.read(len(MAGIC_HEADER))
+  assert maybe_magic_header == MAGIC_HEADER # FIXME: Replace this with a nicer error message.
+
+  maybe_format_version = inp.read(len(FORMAT_VERSION))
+  assert maybe_format_version == FORMAT_VERSION # FIXME: Replace this with a nicer error message.
+
 
   # Read the local string table
   local_strings = strings.read_dict(inp, with_signature=False)
