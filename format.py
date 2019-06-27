@@ -15,6 +15,8 @@ import model
 import strings
 import tycheck
 
+SIGNATURE = b'\x89BJS\r\n\0\n\2'
+
 def write(types, string_dict, ty, tree, out):
   '''Compresses ast and writes it to a byte stream.
 
@@ -34,6 +36,8 @@ def write(types, string_dict, ty, tree, out):
 
   # Check the AST conforms to the IDL.
   tycheck.TypeChecker(types).check_any(ty, tree)
+
+  out.write(SIGNATURE)
 
   # Collect the local strings and write the string table
   local_strings = strings.StringCollector(types)
@@ -85,7 +89,7 @@ def read(types, string_dict, ty, inp):
   >>> buf = io.BytesIO()
   >>> write(types, string_dict, ty_script, tree_in, buf)
   >>> buf.tell()
-  1884
+  1893
   >>> buf.seek(0)
   0
   >>> tree_out = read(types, string_dict, ty_script, buf)
@@ -107,7 +111,7 @@ def read(types, string_dict, ty, inp):
   >>> buf = io.BytesIO()
   >>> write(types, string_dict, ty_script, tree_in, buf)
   >>> buf.tell()
-  1898
+  1907
   >>> buf.seek(0)
   0
   >>> tree_out = read(types, string_dict, ty_script, buf)
@@ -119,12 +123,24 @@ def read(types, string_dict, ty, inp):
   >>> buf = io.BytesIO()
   >>> write(types, string_dict, ty_script, tree_in, buf)
   >>> buf.tell()
-  1934
+  1943
   >>> buf.seek(0)
   0
   >>> tree_out = read(types, string_dict, ty_script, buf)
   >>> assert json.dumps(tree_in) == json.dumps(tree_out)
+
+  Try to read something with an invalid signature:
+
+  >>> buf = io.BytesIO(b'boogie')
+  >>> read(types, string_dict, ty_script, buf)
+  Traceback (most recent call last):
+   ...
+  Exception: signature mismatch
   '''
+
+  signature = inp.read(len(SIGNATURE))
+  if signature != SIGNATURE:
+    raise Exception('signature mismatch')
 
   # Read the local string table
   local_strings = strings.read_dict(inp, with_signature=False)
